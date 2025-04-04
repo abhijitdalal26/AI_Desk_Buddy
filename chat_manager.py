@@ -2,18 +2,20 @@
 ChatManager - Handles the chat interface and interaction flow
 """
 class ChatManager:
-    def __init__(self, model_manager, history_manager, rag_engine, system_prompt=None):
+    def __init__(self, model_manager, history_manager, rag_engine, voice_manager=None, system_prompt=None):
         """Initialize the chat manager.
         
         Args:
             model_manager: ModelManager instance to handle LLM interactions
             history_manager: HistoryManager for storing/retrieving chat history
             rag_engine: RAGEngine for context augmentation
+            voice_manager: VoiceManager for text-to-speech conversion (optional)
             system_prompt: Optional system prompt to set context
         """
         self.model_manager = model_manager
         self.history_manager = history_manager
         self.rag_engine = rag_engine
+        self.voice_manager = voice_manager
         self.current_session = []
         
         # Initialize session with system prompt if provided
@@ -23,6 +25,11 @@ class ChatManager:
     def run_chat_loop(self):
         """Run the main chat interaction loop."""
         print(f"Starting AI Desk Buddy with {self.model_manager.model_name}.")
+        
+        # Start voice manager if available
+        if self.voice_manager:
+            self.voice_manager.start()
+            
         print("Type your message (or 'exit' to quit):")
         
         while True:
@@ -30,6 +37,11 @@ class ChatManager:
             if user_input.lower() in ["exit", "quit"]:
                 # Add current session to stored history before exiting
                 self.history_manager.add_session(self.current_session)
+                
+                # Stop voice manager if available
+                if self.voice_manager:
+                    self.voice_manager.stop()
+                    
                 print("Shutting down AI Desk Buddy.")
                 break
             
@@ -56,8 +68,16 @@ class ChatManager:
             for token in self.model_manager.generate_stream(augmented_messages):
                 print(token, end="", flush=True)
                 response_text += token
+                
+                # Send token to voice manager if available
+                if self.voice_manager:
+                    self.voice_manager.speak_token(token)
             
             print()  # New line after response
+            
+            # Wait for voice to finish if available
+            if self.voice_manager:
+                self.voice_manager.wait_until_done()
             
             # Add assistant response to current session
             assistant_message = {"role": "assistant", "content": response_text}

@@ -8,6 +8,7 @@ from chat_manager import ChatManager
 from model_manager import ModelManager
 from history_manager import HistoryManager
 from simple_rag_engine import SimpleRAGEngine
+from voice_manager import VoiceManager
 
 def parse_arguments():
     """Parse command line arguments."""
@@ -18,6 +19,9 @@ def parse_arguments():
     parser.add_argument('--system-prompt', 
                         default='You are AI Desk Buddy, a helpful assistant. Use the context from previous conversations to provide relevant answers.',
                         help='System prompt for the model')
+    parser.add_argument('--no-voice', action='store_true', help='Disable voice output')
+    parser.add_argument('--lang', default='en', help='Language code for text-to-speech')
+    parser.add_argument('--slow', action='store_true', help='Speak more slowly')
     return parser.parse_args()
 
 def main():
@@ -28,7 +32,19 @@ def main():
     history_manager = HistoryManager(args.history_file)
     model_manager = ModelManager(args.model)
     rag_engine = SimpleRAGEngine(history_manager, args.embeddings_file)
-    chat_manager = ChatManager(model_manager, history_manager, rag_engine, args.system_prompt)
+    
+    # Initialize voice manager unless explicitly disabled
+    voice_manager = None
+    if not args.no_voice:
+        voice_manager = VoiceManager(lang=args.lang, slow=args.slow)
+    
+    chat_manager = ChatManager(
+        model_manager, 
+        history_manager, 
+        rag_engine, 
+        voice_manager,
+        args.system_prompt
+    )
     
     # Run the chat application
     try:
@@ -38,6 +54,10 @@ def main():
     finally:
         # Save any pending changes
         history_manager.save_history()
+        
+        # Stop voice manager if active
+        if voice_manager:
+            voice_manager.stop()
 
 if __name__ == "__main__":
     main()

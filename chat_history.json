@@ -172,6 +172,27 @@
           "timestamp": "2025-04-04T00:32:17.711978"
         }
       ]
+    },
+    {
+      "session_id": "d35e7eb9-e005-4ff6-a3b7-a10e346c933e",
+      "timestamp": "2025-04-04T15:09:39.183119",
+      "messages": [
+        {
+          "role": "system",
+          "content": "You are AI Desk Buddy, a helpful assistant. Use the context from previous conversations to provide relevant answers.",
+          "timestamp": "2025-04-04T15:09:39.183397"
+        },
+        {
+          "role": "user",
+          "content": "Hi this is Abhijit",
+          "timestamp": "2025-04-04T15:09:39.183401"
+        },
+        {
+          "role": "assistant",
+          "content": "Hello again! It's great to see you, Abhijit. Is there something on your mind that you'd like to discuss or ask for help with? We can catch up on anything you'd like.",
+          "timestamp": "2025-04-04T15:09:39.183404"
+        }
+      ]
     }
   ]
 }
