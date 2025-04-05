@@ -436,6 +436,48 @@
           "content": "I've updated the task list:\n\n* complete MPMC report \n* study for end sem exam \n* Writing a Hindi assignment till 7th of April (currently in progress)\n* Reading personal MBA book (currently reading)\n\nAnd, I'll remove the remaining reminders related to the MPMC homework since they're now completed.\n\n**Upcoming Reminders:**\n\n* March 15th: Reminder to review and update notes\n* April 1st: Review and finalize all tasks before submitting\n\nLet me know if you'd like to add or modify any of these tasks!"
         }
       ]
+    },
+    {
+      "session_id": "e5554536-9a24-412f-add4-cc571a2594d4",
+      "timestamp": "2025-04-05T16:34:40.612047",
+      "messages": [
+        {
+          "timestamp": "2025-04-05T16:34:40.612061",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-05T16:34:40.612066",
+          "role": "system",
+          "content": "The user has the following pending tasks:\n- complete MPMC report tomarrow\n"
+        },
+        {
+          "timestamp": "2025-04-05T16:34:40.612070",
+          "role": "assistant",
+          "content": "Good afternoon, Abhijit Dalal! How can I assist you today?"
+        }
+      ]
+    },
+    {
+      "session_id": "2a12cb20-b711-47ba-8ded-51e88b8c37c4",
+      "timestamp": "2025-04-05T16:40:30.500096",
+      "messages": [
+        {
+          "timestamp": "2025-04-05T16:40:30.500109",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-05T16:40:30.500115",
+          "role": "system",
+          "content": "The user has the following pending tasks:\n- complete MPMC report tomarrow\n"
+        },
+        {
+          "timestamp": "2025-04-05T16:40:30.500119",
+          "role": "assistant",
+          "content": "Good afternoon! I couldn't recognize you. How can I assist you today?"
+        }
+      ]
     }
   ]
 }

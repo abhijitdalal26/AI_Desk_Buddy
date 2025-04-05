@@ -1,3 +1,4 @@
+# main.py
 #!/usr/bin/env python3
 """
 AI Desk Buddy - Main Application
@@ -31,14 +32,14 @@ def main():
     if VOICE_ENGINE == "gtts":
         voice_params = {
             "voice_engine": "gtts",
-            "lang": "en",  # Language for gTTS
-            "slow": False  # Slow speech for gTTS
+            "lang": "en",
+            "slow": False
         }
     elif VOICE_ENGINE == "elevenlabs":
         voice_params = {
             "voice_engine": "elevenlabs",
-            "elevenlabs_api_key": "YOUR_API_KEY_HERE",  # Replace with your key
-            "elevenlabs_voice_id": "21m00Tcm4TlvDq8ikWAM",  # Rachel
+            "elevenlabs_api_key": "sk_aaf5d7786e4f87687b6d59b616a97e28ff9827cfd9fb0f0c",
+            "elevenlabs_voice_id": "21m00Tcm4TlvDq8ikWAM",
             "elevenlabs_model_id": "eleven_monolingual_v1",
             "elevenlabs_stability": 0.5,
             "elevenlabs_similarity_boost": 0.5
@@ -52,7 +53,6 @@ def main():
     context_engine = ContextEngine(history_service, embeddings_file)
     task_service = TaskService(tasks_file)
     
-    # Initialize voice service based on VOICE_ENGINE
     voice_service = VoiceServiceFactory.create(**voice_params)
     
     chat_controller = ChatController(
@@ -64,7 +64,6 @@ def main():
         system_prompt
     )
     
-    # Run the chat application
     try:
         chat_controller.run_chat_loop()
     except KeyboardInterrupt:

@@ -1,8 +1,7 @@
-"""
-ChatController - Handles the chat interface and interaction flow
-"""
+# chat_controller.py
 import time
 from datetime import datetime
+from real_time_face_recognition.src.face_recognizer import detect_face_once  # Assuming package structure
 
 class ChatController:
     def __init__(self, ollama_service, history_service, context_engine, 
@@ -15,11 +14,46 @@ class ChatController:
         self.current_session = []
         if system_prompt:
             self.current_session.append({"role": "system", "content": system_prompt})
-    
-    def run_chat_loop(self):
-        print(f"Starting AI Desk Buddy with {self.ollama_service.model_name}.")
+        
+        # Start voice service immediately if present
         if self.voice_service:
             self.voice_service.start()
+        
+        # Detect face and greet user at startup
+        self._greet_user_with_face_recognition()
+
+    def _greet_user_with_face_recognition(self):
+        """Detect the user's face and generate a personalized greeting."""
+        name, confidence = detect_face_once(timeout=5.0)  # Explicitly set 5-second timeout
+        current_hour = datetime.now().hour
+        
+        # Determine greeting based on time of day
+        if 5 <= current_hour < 12:
+            greeting = "Good morning"
+        elif 12 <= current_hour < 17:
+            greeting = "Good afternoon"
+        elif 17 <= current_hour < 22:
+            greeting = "Good evening"
+        else:
+            greeting = "Hello"
+        
+        # Craft greeting message
+        if name != "Unknown" and confidence <= 100:
+            greeting_message = f"{greeting}, {name}! How can I assist you today?"
+        else:
+            greeting_message = f"{greeting}! I couldn't recognize you. How can I assist you today?"
+        
+        # Add greeting to session and display it
+        self.current_session.append({"role": "assistant", "content": greeting_message})
+        print(f"AI: {greeting_message}")
+        
+        if self.voice_service:
+            self.voice_service.speak_token(greeting_message)  # Use speak_token instead of speak
+            self.voice_service.wait_until_done()
+
+    def run_chat_loop(self):
+        print(f"Starting AI Desk Buddy with {self.ollama_service.model_name}.")
+        # voice_service.start() removed from here since it's in __init__
         
         # Check for pending tasks at session start
         self._check_pending_tasks()
