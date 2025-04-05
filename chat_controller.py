@@ -1,4 +1,3 @@
-# chat_controller.py
 import time
 from datetime import datetime
 from real_time_face_recognition.src.face_recognizer import detect_face_once
@@ -47,9 +46,6 @@ class ChatController:
 
     def run_chat_loop(self):
         print(f"Starting AI Desk Buddy with {self.ollama_service.model_name}.")
-        
-        self._check_pending_tasks()
-        
         print("Type your message (or 'exit' to quit):")
         
         while True:
@@ -62,28 +58,16 @@ class ChatController:
                 break
             self._process_user_message(user_input)
     
-    def _check_pending_tasks(self):
+    def _check_pending_tasks(self, show_output=False):
         pending_tasks = self.task_service.get_pending_tasks()
-        if pending_tasks:
-            print("\n--- You have pending tasks ---")
+        if pending_tasks and show_output:
+            print("\n--- Your pending tasks ---")
             for i, task in enumerate(pending_tasks, 1):
-                due_str = ""
-                if task.get("due_at"):
-                    due_date = datetime.fromisoformat(task["due_at"])
-                    due_str = f" - Due: {due_date.strftime('%Y-%m-%d %H:%M')}"
-                print(f"{i}. {task['description']}{due_str}")
-            print("-----------------------------\n")
-            
-            task_list = "\n".join([f"- {task['description']}" for task in pending_tasks])
-            task_message = {
-                "role": "system", 
-                "content": f"The user has the following pending tasks:\n{task_list}\n"
-            }
-            if len(self.current_session) > 0 and self.current_session[0]["role"] == "system":
-                self.current_session.insert(1, task_message)
-            else:
-                self.current_session.insert(0, task_message)
-    
+                print(f"{i}. {task['description']}")
+            print("-------------------------\n")
+            return True
+        return False
+
     def _process_user_message(self, user_input):
         user_message = {"role": "user", "content": user_input}
         self.current_session.append(user_message)
@@ -96,7 +80,6 @@ class ChatController:
             print("AI: ", end="", flush=True)
             response_text = ""
             for token in self.ollama_service.generate_stream(augmented_messages):
-                # Remove any markdown symbols
                 token = token.replace("*", "").replace("**", "").replace("`", "")
                 print(token, end="", flush=True)
                 response_text += token
@@ -113,6 +96,7 @@ class ChatController:
             self.context_engine.add_message(user_message)
             self.context_engine.add_message(assistant_message)
             
+            # Handle task addition
             if task_info:
                 task_id = self.task_service.add_task(
                     description=task_info["description"],
@@ -121,13 +105,18 @@ class ChatController:
                 if task_id:
                     print(f"✓ Task added: {task_info['description']}")
             
-            # Check for task completion
+            # Handle task completion
             if "complete" in user_input.lower() and "task" in user_input.lower():
                 for task in self.task_service.get_pending_tasks():
                     if task["description"].lower() in user_input.lower():
                         self.task_service.complete_task(task["task_id"])
                         print(f"✓ Task completed and removed: {task['description']}")
                         break
+            
+            # Handle reminder requests
+            if "remind me" in user_input.lower() or "give me reminders" in user_input.lower():
+                if not self._check_pending_tasks(show_output=True):
+                    print("AI: You have no pending tasks.")
                     
         except Exception as e:
             print(f"\nError: {e}")

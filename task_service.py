@@ -1,4 +1,3 @@
-# TaskService.py
 """
 TaskService - Handles task recognition, storage, and management
 """
@@ -33,19 +32,45 @@ class TaskService:
             json.dump(self.tasks, f, indent=2)
     
     def extract_task(self, user_input: str) -> Optional[Dict[str, Any]]:
-        """Extract task information from user input"""
-        # Simplified to trigger on 'task' keyword
-        if "task" in user_input.lower():
-            description = user_input.replace("task", "").strip()
-            return {"description": description, "due_at": None}
-        return self.task_recognizer.extract_task(user_input)
+        """Extract task information from user input using LLM logic"""
+        if "task" not in user_input.lower():
+            return self.task_recognizer.extract_task(user_input)
+        
+        # Simulated LLM extraction logic (as Grok 3)
+        # Prompt: "From this input, extract only the words that describe the task itself, max 3 words: {user_input}"
+        words = user_input.lower().split()
+        task_index = words.index("task") if "task" in words else -1
+        if task_index == -1:
+            return None
+        
+        # Take words after "task" and filter out common non-task words
+        task_words = words[task_index + 1:]
+        non_task_words = {"to", "the", "a", "an", "in", "on", "at", "by", "for", "with"}
+        
+        # Extract meaningful task words (verbs/nouns)
+        extracted_words = []
+        for word in task_words:
+            if word not in non_task_words and len(extracted_words) < 3:
+                extracted_words.append(word)
+            if len(extracted_words) == 3:
+                break
+        
+        if not extracted_words:
+            return None
+            
+        description = " ".join(extracted_words)
+        return {"description": description, "due_at": None}
     
     def add_task(self, description: str, due_at: Optional[str] = None, 
                 session_id: Optional[str] = None) -> str:
+        # Final safeguard: ensure description is 3 words max
+        words = description.split()
+        limited_desc = " ".join(words[:3])
+        
         task_id = str(uuid.uuid4())
         task = {
             "task_id": task_id,
-            "description": description,
+            "description": limited_desc,
             "created_at": datetime.now().isoformat(),
             "status": "pending"
         }
@@ -56,7 +81,7 @@ class TaskService:
         if session_id:
             task["session_id"] = session_id
             
-        self.tasks["tasks"].append(task)  # Simply append new task
+        self.tasks["tasks"].append(task)
         self._save_tasks()
         return task_id
     
@@ -70,7 +95,6 @@ class TaskService:
         return False
     
     def complete_task(self, task_id: str) -> bool:
-        # Instead of just marking as completed, remove the task
         for i, task in enumerate(self.tasks["tasks"]):
             if task["task_id"] == task_id:
                 self.tasks["tasks"].pop(i)

@@ -478,6 +478,32 @@
           "content": "Good afternoon! I couldn't recognize you. How can I assist you today?"
         }
       ]
+    },
+    {
+      "session_id": "a27dd70c-3e01-461e-a99e-132175306444",
+      "timestamp": "2025-04-05T17:23:39.762289",
+      "messages": [
+        {
+          "timestamp": "2025-04-05T17:23:39.762317",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-05T17:23:39.762327",
+          "role": "assistant",
+          "content": "Good evening! I couldn't recognize you. How can I assist you today?"
+        },
+        {
+          "timestamp": "2025-04-05T17:23:39.762332",
+          "role": "user",
+          "content": "task write a long report by Friday"
+        },
+        {
+          "timestamp": "2025-04-05T17:23:39.762337",
+          "role": "assistant",
+          "content": "I've added the task to your schedule:\n\nYour Tasks:\n\n Write a long report by Friday\n study for end sem exam \n Writing a Hindi assignment till 7th of April (currently in progress)\n Reading personal MBA book (currently reading)\n Wash clothes\n Run for at least 30 minutes tomorrow\n Take a short break from studying on March 20th\n\nTask List Update:\n\ncomplete MPMC report completed\nstudy for end sem exam \nWriting a Hindi assignment till 7th of April (currently in progress)\nReading personal MBA book (currently reading)\nWrite a long report by Friday (newly added task)\n\nI'll send you a reminder on Wednesday to help you stay on track with your report. Would you like me to add any specific details or deadlines for the report?"
+        }
+      ]
     }
   ]
 }
