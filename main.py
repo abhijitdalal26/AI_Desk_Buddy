@@ -1,63 +1,78 @@
 #!/usr/bin/env python3
 """
 AI Desk Buddy - Main Application
-Entry point for the chat application with RAG capabilities.
+Entry point for the chat application with RAG capabilities and task reminders.
 """
-import argparse
-from chat_manager import ChatManager
-from model_manager import ModelManager
-from history_manager import HistoryManager
-from simple_rag_engine import SimpleRAGEngine
-from voice_manager import VoiceManager
+from chat_controller import ChatController
+from ollama_service import OllamaService
+from history_service import HistoryService
+from context_engine import ContextEngine
+from voice_service_factory import VoiceServiceFactory
+from task_service import TaskService
 
-def parse_arguments():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='AI Desk Buddy with RAG capabilities')
-    parser.add_argument('--model', default='llama3.2:3b', help='Model name to use with Ollama')
-    parser.add_argument('--history-file', default='chat_history.json', help='File to store chat history')
-    parser.add_argument('--embeddings-file', default='chat_embeddings.json', help='File to store embeddings')
-    parser.add_argument('--system-prompt', 
-                        default='You are AI Desk Buddy, a helpful assistant. Use the context from previous conversations to provide relevant answers.',
-                        help='System prompt for the model')
-    parser.add_argument('--no-voice', action='store_true', help='Disable voice output')
-    parser.add_argument('--lang', default='en', help='Language code for text-to-speech')
-    parser.add_argument('--slow', action='store_true', help='Speak more slowly')
-    return parser.parse_args()
+# Hardcode voice engine choice here (edit before running)
+VOICE_ENGINE = "gtts"  # Options: "gtts" or "elevenlabs"
 
 def main():
     """Main application entry point."""
-    args = parse_arguments()
-    
+    # Core settings
+    model_name = "llama3.2:3b"
+    history_file = "chat_history.json"
+    embeddings_file = "chat_embeddings.json"
+    tasks_file = "tasks.json"
+    system_prompt = """
+    You are AI Desk Buddy, a helpful assistant. 
+    Use the context from previous conversations to provide relevant answers.
+    You can help manage tasks and respond to date/time queries accurately.
+    When you help with tasks, always acknowledge them clearly.
+    """
+
+    # Voice settings (edit these as needed)
+    if VOICE_ENGINE == "gtts":
+        voice_params = {
+            "voice_engine": "gtts",
+            "lang": "en",  # Language for gTTS
+            "slow": False  # Slow speech for gTTS
+        }
+    elif VOICE_ENGINE == "elevenlabs":
+        voice_params = {
+            "voice_engine": "elevenlabs",
+            "elevenlabs_api_key": "YOUR_API_KEY_HERE",  # Replace with your key
+            "elevenlabs_voice_id": "21m00Tcm4TlvDq8ikWAM",  # Rachel
+            "elevenlabs_model_id": "eleven_monolingual_v1",
+            "elevenlabs_stability": 0.5,
+            "elevenlabs_similarity_boost": 0.5
+        }
+    else:
+        raise ValueError("VOICE_ENGINE must be 'gtts' or 'elevenlabs'")
+
     # Initialize components
-    history_manager = HistoryManager(args.history_file)
-    model_manager = ModelManager(args.model)
-    rag_engine = SimpleRAGEngine(history_manager, args.embeddings_file)
+    history_service = HistoryService(history_file)
+    ollama_service = OllamaService(model_name)
+    context_engine = ContextEngine(history_service, embeddings_file)
+    task_service = TaskService(tasks_file)
     
-    # Initialize voice manager unless explicitly disabled
-    voice_manager = None
-    if not args.no_voice:
-        voice_manager = VoiceManager(lang=args.lang, slow=args.slow)
+    # Initialize voice service based on VOICE_ENGINE
+    voice_service = VoiceServiceFactory.create(**voice_params)
     
-    chat_manager = ChatManager(
-        model_manager, 
-        history_manager, 
-        rag_engine, 
-        voice_manager,
-        args.system_prompt
+    chat_controller = ChatController(
+        ollama_service, 
+        history_service, 
+        context_engine, 
+        task_service,
+        voice_service,
+        system_prompt
     )
     
     # Run the chat application
     try:
-        chat_manager.run_chat_loop()
+        chat_controller.run_chat_loop()
     except KeyboardInterrupt:
         print("\nExiting AI Desk Buddy. Goodbye!")
     finally:
-        # Save any pending changes
-        history_manager.save_history()
-        
-        # Stop voice manager if active
-        if voice_manager:
-            voice_manager.stop()
+        history_service.save_history()
+        if voice_service:
+            voice_service.stop()
 
 if __name__ == "__main__":
     main()
