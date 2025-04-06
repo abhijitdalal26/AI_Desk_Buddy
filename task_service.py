@@ -32,45 +32,18 @@ class TaskService:
             json.dump(self.tasks, f, indent=2)
     
     def extract_task(self, user_input: str) -> Optional[Dict[str, Any]]:
-        """Extract task information from user input using LLM logic"""
-        if "task" not in user_input.lower():
-            return self.task_recognizer.extract_task(user_input)
-        
-        # Simulated LLM extraction logic (as Grok 3)
-        # Prompt: "From this input, extract only the words that describe the task itself, max 3 words: {user_input}"
-        words = user_input.lower().split()
-        task_index = words.index("task") if "task" in words else -1
-        if task_index == -1:
-            return None
-        
-        # Take words after "task" and filter out common non-task words
-        task_words = words[task_index + 1:]
-        non_task_words = {"to", "the", "a", "an", "in", "on", "at", "by", "for", "with"}
-        
-        # Extract meaningful task words (verbs/nouns)
-        extracted_words = []
-        for word in task_words:
-            if word not in non_task_words and len(extracted_words) < 3:
-                extracted_words.append(word)
-            if len(extracted_words) == 3:
-                break
-        
-        if not extracted_words:
-            return None
-            
-        description = " ".join(extracted_words)
-        return {"description": description, "due_at": None}
+        """Extract task information from user input"""
+        return self.task_recognizer.extract_task(user_input)
     
     def add_task(self, description: str, due_at: Optional[str] = None, 
                 session_id: Optional[str] = None) -> str:
-        # Final safeguard: ensure description is 3 words max
-        words = description.split()
-        limited_desc = " ".join(words[:3])
-        
+        """
+        Add a new task
+        """
         task_id = str(uuid.uuid4())
         task = {
             "task_id": task_id,
-            "description": limited_desc,
+            "description": description,
             "created_at": datetime.now().isoformat(),
             "status": "pending"
         }
@@ -86,6 +59,9 @@ class TaskService:
         return task_id
     
     def update_task(self, task_id: str, **kwargs) -> bool:
+        """
+        Update task properties
+        """
         for i, task in enumerate(self.tasks["tasks"]):
             if task["task_id"] == task_id:
                 for key, value in kwargs.items():
@@ -95,27 +71,33 @@ class TaskService:
         return False
     
     def complete_task(self, task_id: str) -> bool:
-        for i, task in enumerate(self.tasks["tasks"]):
-            if task["task_id"] == task_id:
-                self.tasks["tasks"].pop(i)
-                self._save_tasks()
-                return True
-        return False
+        """
+        Mark a task as completed
+        """
+        return self.update_task(
+            task_id, 
+            status="completed", 
+            completed_at=datetime.now().isoformat()
+        )
     
     def get_task_by_id(self, task_id: str) -> Optional[Dict[str, Any]]:
+        """Get a task by its ID"""
         for task in self.tasks["tasks"]:
             if task["task_id"] == task_id:
                 return task
         return None
     
     def get_tasks_by_status(self, status: str) -> List[Dict[str, Any]]:
+        """Get all tasks with the specified status"""
         return [task for task in self.tasks["tasks"] if task["status"] == status]
     
     def get_pending_tasks(self) -> List[Dict[str, Any]]:
+        """Get all pending tasks"""
         pending = self.get_tasks_by_status("pending")
         return sorted(pending, key=lambda x: x.get("due_at", "9999"))
     
     def get_overdue_tasks(self) -> List[Dict[str, Any]]:
+        """Get all overdue tasks"""
         now = datetime.now().isoformat()
         return [
             task for task in self.get_pending_tasks() 
@@ -123,6 +105,9 @@ class TaskService:
         ]
     
     def delete_task(self, task_id: str) -> bool:
+        """
+        Delete a task
+        """
         for i, task in enumerate(self.tasks["tasks"]):
             if task["task_id"] == task_id:
                 self.tasks["tasks"].pop(i)
@@ -131,4 +116,5 @@ class TaskService:
         return False
     
     def handle_date_query(self, query: str) -> str:
+        """Handle date-related queries"""
         return self.datetime_util.process_date_query(query)

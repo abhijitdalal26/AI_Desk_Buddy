@@ -504,6 +504,37 @@
           "content": "I've added the task to your schedule:\n\nYour Tasks:\n\n Write a long report by Friday\n study for end sem exam \n Writing a Hindi assignment till 7th of April (currently in progress)\n Reading personal MBA book (currently reading)\n Wash clothes\n Run for at least 30 minutes tomorrow\n Take a short break from studying on March 20th\n\nTask List Update:\n\ncomplete MPMC report completed\nstudy for end sem exam \nWriting a Hindi assignment till 7th of April (currently in progress)\nReading personal MBA book (currently reading)\nWrite a long report by Friday (newly added task)\n\nI'll send you a reminder on Wednesday to help you stay on track with your report. Would you like me to add any specific details or deadlines for the report?"
         }
       ]
+    },
+    {
+      "session_id": "ff12f30e-e1ea-4c5c-b8be-e8ac2926d4d9",
+      "timestamp": "2025-04-07T03:44:02.544655",
+      "messages": [
+        {
+          "timestamp": "2025-04-07T03:44:02.545665",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-07T03:44:02.545676",
+          "role": "system",
+          "content": "The user has the following pending tasks:\n- complete MPMC report tomarrow\n- add the  of Field project submission\n- add the  of running\n- remind me the\n- add the to\n- write long report\n"
+        },
+        {
+          "timestamp": "2025-04-07T03:44:02.545681",
+          "role": "assistant",
+          "content": "Hello! I couldn't recognize you. How can I assist you today?"
+        },
+        {
+          "timestamp": "2025-04-07T03:44:02.545685",
+          "role": "user",
+          "content": "Hi there"
+        },
+        {
+          "timestamp": "2025-04-07T03:44:02.545688",
+          "role": "assistant",
+          "content": "It's nice to meet you again! Unfortunately, I don't have any specific context about our previous conversations since this is the start of a new interaction. However, I do see that you had some pending tasks listed earlier - would you like me to help with any of those?"
+        }
+      ]
     }
   ]
 }

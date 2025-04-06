@@ -1,4 +1,3 @@
-# real-time-face-recognition/src/face_recognizer.py
 import warnings
 warnings.filterwarnings('ignore', category=UserWarning)
 

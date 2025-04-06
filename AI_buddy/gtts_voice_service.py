@@ -8,6 +8,11 @@ import time
 import tempfile
 import pygame
 from gtts import gTTS
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class GTTSVoiceService:
     def __init__(self, lang="en", slow=False, sentence_buffer_size=3):
@@ -30,7 +35,7 @@ class GTTSVoiceService:
         self.playback_thread = threading.Thread(target=self._playback_worker)
         self.playback_thread.daemon = True
         self.playback_thread.start()
-        print("Google TTS Voice Service started successfully.")
+        logger.info("Google TTS Voice Service started successfully.")
     
     def stop(self):
         self.active = False
@@ -54,9 +59,10 @@ class GTTSVoiceService:
             os.rmdir(self.temp_dir)
         except:
             pass
-        print("Google TTS Voice Service stopped.")
+        logger.info("Google TTS Voice Service stopped.")
     
     def speak_token(self, token):
+        logger.info(f"Received token: '{token}'")
         self.text_queue.put(token)
     
     def _tts_worker(self):
@@ -65,16 +71,19 @@ class GTTSVoiceService:
             try:
                 token = self.text_queue.get(timeout=0.1)
                 self.current_buffer += token
+                logger.info(f"Buffer updated: '{self.current_buffer}'")
                 if any(ending in token for ending in self.sentence_endings):
                     sentence_count += 1
                 if sentence_count >= self.sentence_buffer_size or len(self.current_buffer) > 200:
                     if self.current_buffer.strip():
+                        logger.info(f"Converting to speech: '{self.current_buffer}'")
                         self._process_text_to_speech(self.current_buffer)
                     self.current_buffer = ""
                     sentence_count = 0
                 self.text_queue.task_done()
             except queue.Empty:
                 if self.current_buffer and self.current_buffer.strip():
+                    logger.info(f"Converting final buffer to speech: '{self.current_buffer}'")
                     self._process_text_to_speech(self.current_buffer)
                     self.current_buffer = ""
                     sentence_count = 0
@@ -88,6 +97,7 @@ class GTTSVoiceService:
         tts = gTTS(text=text, lang=self.lang, slow=self.slow)
         tts.save(temp_file)
         self.audio_queue.put(temp_file)
+        logger.info(f"Audio file queued: {temp_file}")
     
     def _playback_worker(self):
         while self.active:
@@ -96,22 +106,27 @@ class GTTSVoiceService:
                 if os.path.exists(audio_file):
                     pygame.mixer.music.load(audio_file)
                     pygame.mixer.music.play()
+                    logger.info(f"Playing audio: {audio_file}")
                     while pygame.mixer.music.get_busy():
                         time.sleep(0.1)
                         if not self.active:
                             break
                     try:
                         os.remove(audio_file)
+                        logger.info(f"Deleted audio file: {audio_file}")
                     except:
                         pass
                 self.audio_queue.task_done()
             except queue.Empty:
                 time.sleep(0.1)
     
+    
     def process_final_buffer(self):
         if self.current_buffer and self.current_buffer.strip():
+            logger.info(f"Processing final buffer: '{self.current_buffer}'")
             self._process_text_to_speech(self.current_buffer)
             self.current_buffer = ""
+
     
     def wait_until_done(self):
         while not self.text_queue.empty():
