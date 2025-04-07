@@ -20,7 +20,6 @@ def start_server(host='192.168.84.248', port=65432):
 
 def main():
     """Main application entry point."""
-    # Core settings
     model_name = "llama3.2:3b"
     history_file = "chat_history.json"
     embeddings_file = "chat_embeddings.json"
@@ -35,7 +34,7 @@ def main():
     # Initialize components
     history_service = HistoryService(history_file)
     ollama_service = OllamaService(model_name)
-    context_engine = ContextEngine(history_service, embeddings_file)
+    context_engine = ContextEngine(history_service, embeddings_file)  # Fixed: Added required argument
     task_service = TaskService(tasks_file)
     
     # Start server for communication with Raspberry Pi
@@ -46,8 +45,9 @@ def main():
         history_service, 
         context_engine, 
         task_service,
-        conn,  # Pass the connection to ChatController
-        system_prompt
+        conn,
+        system_prompt,
+        use_pi_input=True  # Use Raspberry Pi for input
     )
     
     try:

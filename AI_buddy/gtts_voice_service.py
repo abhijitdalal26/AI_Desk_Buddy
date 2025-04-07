@@ -1,6 +1,3 @@
-"""
-GTTSVoiceService - Handles text-to-speech conversion using Google Text-to-Speech (gTTS)
-"""
 import os
 import queue
 import threading
@@ -23,12 +20,13 @@ class GTTSVoiceService:
         self.audio_queue = queue.Queue()
         self.active = False
         self.current_buffer = ""
-        pygame.mixer.init()
         self.temp_dir = tempfile.mkdtemp()
         self.sentence_endings = ".!?"
     
     def start(self):
         self.active = True
+        pygame.mixer.init()
+        time.sleep(0.5)  # Add a small delay to ensure mixer is initialized
         self.tts_thread = threading.Thread(target=self._tts_worker)
         self.tts_thread.daemon = True
         self.tts_thread.start()
@@ -120,13 +118,11 @@ class GTTSVoiceService:
             except queue.Empty:
                 time.sleep(0.1)
     
-    
     def process_final_buffer(self):
         if self.current_buffer and self.current_buffer.strip():
             logger.info(f"Processing final buffer: '{self.current_buffer}'")
             self._process_text_to_speech(self.current_buffer)
             self.current_buffer = ""
-
     
     def wait_until_done(self):
         while not self.text_queue.empty():
@@ -136,3 +132,4 @@ class GTTSVoiceService:
             time.sleep(0.1)
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
+            
