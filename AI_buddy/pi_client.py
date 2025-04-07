@@ -2,9 +2,9 @@ import socket
 import time
 import logging
 import os
+import queue
 import random
 import threading
-import queue
 import pygame
 import cv2
 from real_time_face_recognition.src.face_recognizer import detect_face_once
@@ -27,6 +27,20 @@ def connect_to_server(host='192.168.143.248', port=65432):
     except Exception as e:
         logger.error(f"Failed to connect to server: {e}")
         raise
+
+def reconnect_to_server(host='192.168.143.248', port=65432, max_attempts=3):
+    """Try to reconnect to the server with multiple attempts"""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            logger.info(f"Reconnection attempt {attempt}/{max_attempts}")
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((host, port))
+            logger.info(f"Reconnected to server at {host}:{port}")
+            return client_socket
+        except Exception as e:
+            logger.error(f"Reconnection attempt {attempt} failed: {e}")
+            time.sleep(2)  # Wait before retrying
+    return None
 
 def play_random_song():
     """Play a random song from the songs directory."""
@@ -71,48 +85,42 @@ def input_listener(running_event, input_queue):
 
 def process_server_response(client_socket, voice_service, stop_event):
     """Process server responses and speak them until completion or interruption"""
-    while not stop_event.is_set():
-        try:
-            data = client_socket.recv(1024).decode()
-            if not data:
+    try:
+        while not stop_event.is_set():
+            try:
+                data = client_socket.recv(1024).decode()
+                if not data:
+                    break
+                if data.startswith("TTS:"):
+                    text = data.replace("TTS:", "", 1).strip()
+                    if text:
+                        logger.info(f"Speaking token: '{text}'")
+                        voice_service.speak_token(text)
+                elif data == "TTS_END:":
+                    logger.info("End of response received")
+                    break
+                else:
+                    logger.warning(f"Unknown data: '{data}'")
+                    break
+            except socket.timeout:
+                logger.warning("Socket timeout, retrying...")
+                continue
+            except ConnectionResetError:
+                logger.error("Connection was reset by the server")
                 break
-            if data.startswith("TTS:"):
-                text = data.replace("TTS:", "", 1).strip()
-                if text:
-                    logger.info(f"Speaking token: '{text}'")
-                    voice_service.speak_token(text)
-            elif data == "TTS_END:":
-                logger.info("End of response received")
-                break
-            else:
-                logger.warning(f"Unknown data: '{data}'")
-                break
-        except Exception as e:
-            logger.error(f"Error receiving server response: {e}")
-            break
-
-def speak_farewell(voice_service, name="friend"):
-    """Speak a farewell message"""
-    farewells = [
-        f"Goodbye {name}! It was nice talking with you.",
-        f"See you later {name}! Have a great day!",
-        f"Farewell {name}! Hope to chat again soon.",
-        f"Take care {name}! I enjoyed our conversation."
-    ]
-    farewell_msg = random.choice(farewells)
-    logger.info(f"Speaking farewell: '{farewell_msg}'")
-    voice_service.speak_token(farewell_msg)
-    # Wait for farewell to complete
-    voice_service.wait_until_done()
+    except Exception as e:
+        logger.error(f"Error in response processing: {e}")
+    finally:
+        logger.info("Response processing completed")
 
 def main():
     # Initialize pygame mixer for sound operations
     if not pygame.mixer.get_init():
         pygame.mixer.init()
+        pygame.mixer.music.set_volume(0.7)  # Set default volume to 70%
     
     client_socket = None
     voice_service = None
-    user_name = "friend"  # Default name
     
     try:
         # Connect to the laptop server
@@ -123,9 +131,6 @@ def main():
         name, confidence = detect_face_once(timeout=10.0, show_video=True)
         logger.info(f"Detected: {name} with confidence {confidence:.1f}%")
         
-        if name and name.lower() != "unknown":
-            user_name = name  # Save the user's name for personalized farewell
-        
         # Send detected name to the server
         client_socket.sendall(f"NAME:{name}".encode())
         logger.info(f"Sent name '{name}' to server")
@@ -135,7 +140,15 @@ def main():
         voice_service.start()
         time.sleep(1)  # Ensure TTS service is initialized
         
-        # Receive and speak the greeting
+        # Add a local greeting if name was detected with high confidence
+        if name != "Unknown" and confidence > 85:
+            voice_service.speak_token(f"Hello {name}! Nice to see you again.")
+        elif name == "Unknown":
+            voice_service.speak_token("Hello there! I don't think we've met before.")
+        else:
+            voice_service.speak_token("Hello! How can I help you today?")
+        
+        # Receive and speak the greeting from server
         data = client_socket.recv(1024).decode()
         if data.startswith("TTS:"):
             greeting = data.replace("TTS:", "", 1).strip()
@@ -169,35 +182,12 @@ def main():
             
             if user_input:
                 # Check for exit commands
-                if user_input.lower() in ["exit", "quit", "bye"] or "bye" in user_input.lower():
-                    # Speak farewell before exiting
-                    if voice_service.is_speaking():
-                        voice_service.stop_speaking()
-                    if music_playing:
-                        stop_music()
-                    
-                    # Let the server know we're exiting
+                if user_input.lower() in ["exit", "quit", "bye"] or "ok bye" in user_input.lower():
+                    # Say goodbye before exiting
+                    voice_service.speak_token("Goodbye! It was nice talking with you.")
+                    voice_service.wait_until_done()  # Wait for goodbye to finish speaking
                     client_socket.sendall("INPUT:exit".encode())
-                    
-                    # Speak farewell message
-                    speak_farewell(voice_service, user_name)
                     break
-                
-                # Check for voice speed control
-                if "slow" in user_input.lower() and any(word in user_input.lower() for word in ["speak", "voice", "speed"]):
-                    voice_service.set_speed("slow")
-                    logger.info("Set voice to slow speed")
-                    continue
-                
-                if "fast" in user_input.lower() and any(word in user_input.lower() for word in ["speak", "voice", "speed"]):
-                    voice_service.set_speed("fast")
-                    logger.info("Set voice to fast speed")
-                    continue
-                
-                if "normal" in user_input.lower() and any(word in user_input.lower() for word in ["speak", "voice", "speed"]):
-                    voice_service.set_speed("normal")
-                    logger.info("Set voice to normal speed")
-                    continue
                 
                 # Check for stop commands
                 if any(command in user_input.lower() for command in ["stop", "stop speaking", "shut up"]):
@@ -213,20 +203,48 @@ def main():
                         logger.info("Stopped music playback")
                         continue
                 
+                # Check for volume control commands
+                elif any(command in user_input.lower() for command in ["volume up", "louder"]):
+                    current_volume = pygame.mixer.music.get_volume()
+                    new_volume = min(1.0, current_volume + 0.1)
+                    pygame.mixer.music.set_volume(new_volume)
+                    voice_service.speak_token(f"Volume increased to {int(new_volume * 100)}%")
+                    continue
+                elif any(command in user_input.lower() for command in ["volume down", "quieter"]):
+                    current_volume = pygame.mixer.music.get_volume()
+                    new_volume = max(0.0, current_volume - 0.1)
+                    pygame.mixer.music.set_volume(new_volume)
+                    voice_service.speak_token(f"Volume decreased to {int(new_volume * 100)}%")
+                    continue
+                
                 # Check for song request
-                if "song" in user_input.lower() and "stop" not in user_input.lower():
+                elif "song" in user_input.lower() and "stop" not in user_input.lower():
                     logger.info("Detected 'song' in input, playing a random song.")
                     music_playing = play_random_song()
                 else:
-                    # Stop any current TTS or music before sending new input
+                    # Stop any current TTS before sending new input
                     voice_service.stop_speaking()
-                    if music_playing:
-                        stop_music()
-                        music_playing = False
+                    
+                    # Give immediate feedback
+                    voice_service.speak_token("Let me think about that...")
                     
                     # Send input to server
-                    client_socket.sendall(f"INPUT:{user_input}".encode())
-                    logger.info(f"Sent input to server: '{user_input}'")
+                    try:
+                        client_socket.sendall(f"INPUT:{user_input}".encode())
+                        logger.info(f"Sent input to server: '{user_input}'")
+                    except ConnectionError:
+                        logger.error("Connection lost while sending input")
+                        voice_service.speak_token("I'm having trouble connecting to the server. Let me try to reconnect.")
+                        client_socket = reconnect_to_server()
+                        if client_socket:
+                            voice_service.speak_token("Connection restored!")
+                            continue
+                        else:
+                            voice_service.speak_token("Sorry, I couldn't reconnect to the server. Please restart me.")
+                            break
+                    
+                    # Stop feedback message
+                    voice_service.stop_speaking()
                     
                     # Process server response
                     stop_response = threading.Event()

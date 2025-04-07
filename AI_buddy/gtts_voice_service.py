@@ -24,7 +24,6 @@ class GTTSVoiceService:
         self.sentence_endings = ".!?"
         self.playing = False
         self.stop_requested = False
-        self.speed = "normal"  # Can be "slow", "normal", or "fast"
     
     def start(self):
         self.active = True
@@ -98,22 +97,6 @@ class GTTSVoiceService:
                 not self.audio_queue.empty() or 
                 bool(self.current_buffer.strip()))
     
-    def set_speed(self, speed):
-        """Set the speech speed (slow, normal, fast)"""
-        if speed.lower() == "slow":
-            self.slow = True
-            self.speed = "slow"
-            logger.info("TTS speed set to slow")
-        elif speed.lower() == "fast":
-            self.slow = False
-            self.speed = "fast"
-            # Fast is achieved by adjusting playback rate in _playback_worker
-            logger.info("TTS speed set to fast")
-        else:  # normal
-            self.slow = False
-            self.speed = "normal"
-            logger.info("TTS speed set to normal")
-    
     def _tts_worker(self):
         sentence_count = 0
         while self.active:
@@ -166,18 +149,8 @@ class GTTSVoiceService:
                 if os.path.exists(audio_file):
                     self.playing = True
                     pygame.mixer.music.load(audio_file)
-                    
-                    # Adjust playback speed
-                    if self.speed == "fast":
-                        # Fast speed is achieved by setting a higher playback rate
-                        # The specific value might need adjustment based on preference
-                        pygame.mixer.music.set_pos(0)
-                        pygame.mixer.music.play(loops=0)
-                    else:
-                        pygame.mixer.music.play()
-                    
-                    logger.info(f"Playing audio: {audio_file} at {self.speed} speed")
-                    
+                    pygame.mixer.music.play()
+                    logger.info(f"Playing audio: {audio_file}")
                     while pygame.mixer.music.get_busy():
                         time.sleep(0.1)
                         if not self.active or self.stop_requested:

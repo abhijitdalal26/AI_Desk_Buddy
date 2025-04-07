@@ -586,6 +586,68 @@
           "content": "Quickmath,Abhijit!Letmecalculatethatforyou...4times55is...220!"
         }
       ]
+    },
+    {
+      "session_id": "f5161c49-483e-4f84-a5ef-c5adcd88bc69",
+      "timestamp": "2025-04-08T02:20:57.078941",
+      "messages": [
+        {
+          "timestamp": "2025-04-08T02:20:57.078955",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-08T02:20:57.078958",
+          "role": "system",
+          "content": "The user has the following pending tasks:\n- complete MPMC report tomarrow\n- add the  of Field project submission\n- add the  of running\n- remind me the\n- add the to\n- write long report\n"
+        },
+        {
+          "timestamp": "2025-04-08T02:20:57.078960",
+          "role": "assistant",
+          "content": "Hello, Abhijit Dalal! How can I assist you today?"
+        }
+      ]
+    },
+    {
+      "session_id": "92043e9c-c1cd-4951-96b1-13299576b6d9",
+      "timestamp": "2025-04-08T02:45:20.716189",
+      "messages": [
+        {
+          "timestamp": "2025-04-08T02:45:20.716353",
+          "role": "system",
+          "content": "\n    You are AI Desk Buddy, a helpful assistant. \n    Use the context from previous conversations to provide relevant answers.\n    You can help manage tasks and respond to date/time queries accurately.\n    When you help with tasks, always acknowledge them clearly.\n    "
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716365",
+          "role": "system",
+          "content": "The user has the following pending tasks:\n- complete MPMC report tomarrow\n- add the  of Field project submission\n- add the  of running\n- remind me the\n- add the to\n- write long report\n"
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716370",
+          "role": "assistant",
+          "content": "Hello, Abhijit Dalal! How can I assist you today?"
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716373",
+          "role": "user",
+          "content": "stop"
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716378",
+          "role": "assistant",
+          "content": "I'llstopwiththepleasantriesfornow.Youhadsomependingtasksthatneededattention.Wouldyouliketotackleoneofthemfirst?Hereareyourpendingtasksagain:1.CompleteMPMCreporttomorrow2.AddtheduedateofFieldprojectsubmission3.Addtheduedateofrunning4.Remindmethedeadlinefor[inserttask]5.Addthenameofsomeoneto6.Writealongreport"
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716383",
+          "role": "user",
+          "content": "stop"
+        },
+        {
+          "timestamp": "2025-04-08T02:45:20.716387",
+          "role": "assistant",
+          "content": "I'llstopwiththereminderfornow.Ifyou'rereadytostarttacklingoneofthosetasks,justletmeknowwhichoneyou'dliketoworkonfirst!"
+        }
+      ]
     }
   ]
 }
