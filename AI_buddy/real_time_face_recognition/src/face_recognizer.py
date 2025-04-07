@@ -1,5 +1,5 @@
-import warnings
-warnings.filterwarnings('ignore', category=UserWarning)
+# Updated face_recognizer.py using Picamera2 for Raspberry Pi 4B with Bullseye
+# For real_time_face_recognition/src/face_recognizer.py
 
 import cv2
 import numpy as np
@@ -7,114 +7,155 @@ import json
 import os
 import logging
 import time
-from picamera2 import Picamera2  # Use picamera2 for Raspberry Pi camera
+from picamera2 import Picamera2
+from .settings.settings import CAMERA, FACE_DETECTION, PATHS
 
-# Assuming settings are stored in a separate file; adjust paths as needed
-try:
-    from settings.settings import CAMERA, FACE_DETECTION, PATHS
-except ImportError:
-    # Default settings if settings.py is not available
-    CAMERA = {'width': 640, 'height': 480}
-    FACE_DETECTION = {'scale_factor': 1.1, 'min_neighbors': 5, 'min_size': (30, 30)}
-    PATHS = {
-        'trainer_file': 'trainer.yml',
-        'names_file': 'names.json',
-        'cascade_file': cv2.data.haarcascades + 'haarcascade_frontalface_default.xml'
-    }
-
+# Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def initialize_camera():
-    """Initialize the Raspberry Pi camera with picamera2."""
-    try:
-        camera = Picamera2()
-        config = camera.create_preview_configuration(main={"size": (CAMERA['width'], CAMERA['height'])})
-        camera.configure(config)
-        camera.start()
-        logger.info("Camera initialized successfully")
-        return camera
-    except Exception as e:
-        logger.error(f"Error initializing camera: {e}")
-        return None
-
 def load_names(filename: str) -> dict:
-    """Load the names dictionary from a JSON file."""
+    """
+    Load name mappings from JSON file
+    """
     try:
-        names_json = {}
         if os.path.exists(filename):
             with open(filename, 'r') as fs:
                 content = fs.read().strip()
                 if content:
-                    names_json = json.loads(content)
-        return names_json
+                    return json.loads(content)
+        return {}
     except Exception as e:
         logger.error(f"Error loading names: {e}")
         return {}
 
-def detect_face_once(timeout: float = 5.0) -> tuple[str, float]:
-    """Detect a face once using the Raspberry Pi camera and return the name and confidence."""
+def detect_face_once(timeout=10.0, show_video=True):
+    """
+    Detect a face and return the recognized name and confidence using Picamera2.
+    Runs for the specified timeout duration or until ESC is pressed.
+    
+    Args:
+        timeout (float): Maximum time to run face detection (in seconds)
+        show_video (bool): Whether to display the video feed
+        
+    Returns:
+        tuple: (name, confidence) where name is the recognized name or "Unknown"
+               and confidence is the recognition confidence percentage
+    """
     try:
+        logger.info(f"Starting face detection with Picamera2, timeout: {timeout} seconds")
+        
+        # Initialize face recognizer
         recognizer = cv2.face.LBPHFaceRecognizer_create()
         if not os.path.exists(PATHS['trainer_file']):
             logger.error("Trainer file not found. Please train the model first.")
-            return "Unknown", 100.0
-        
+            return "Unknown", 0.0
         recognizer.read(PATHS['trainer_file'])
         
+        # Load face cascade
         face_cascade = cv2.CascadeClassifier(PATHS['cascade_file'])
         if face_cascade.empty():
             logger.error("Error loading cascade classifier")
-            return "Unknown", 100.0
+            return "Unknown", 0.0
         
-        camera = initialize_camera()
-        if camera is None:
-            logger.error("Failed to initialize camera")
-            return "Unknown", 100.0
+        # Initialize Picamera2
+        picam2 = Picamera2()
+        preview_config = picam2.create_preview_configuration(
+            main={"format": "RGB888", "size": (CAMERA['width'], CAMERA['height'])}
+        )
+        picam2.configure(preview_config)
+        picam2.start()
         
+        # Wait a moment for the camera to stabilize
+        time.sleep(0.5)
+        
+        # Load name mappings
         names = load_names(PATHS['names_file'])
         if not names:
-            logger.warning("No names loaded, recognition will be limited")
+            logger.warning("No names loaded; recognition will show IDs instead of names")
         
+        best_name = "Unknown"
+        best_confidence = 0.0
         start_time = time.time()
-        while time.time() - start_time < timeout:
-            # Capture frame using picamera2
-            frame = camera.capture_array()
-            # Convert RGB (picamera2 default) to BGR for OpenCV
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            
-            faces = face_cascade.detectMultiScale(
-                gray,
-                scaleFactor=FACE_DETECTION['scale_factor'],
-                minNeighbors=FACE_DETECTION['min_neighbors'],
-                minSize=FACE_DETECTION['min_size']
-            )
-            
-            if len(faces) > 0:
-                (x, y, w, h) = faces[0]
-                id, confidence = recognizer.predict(gray[y:y+h, x:x+w])
-                
-                if confidence <= 100:
-                    name = names.get(str(id), "Unknown")
-                else:
-                    name = "Unknown"
-                
-                camera.close()
-                return name, confidence
-            
-            time.sleep(0.1)
+        frame_count = 0
         
-        logger.info("No face detected within timeout period")
-        camera.close()
-        return "Unknown", 100.0
-    
+        while (time.time() - start_time) < timeout:
+            try:
+                # Capture frame from Picamera2
+                img = picam2.capture_array()
+                frame_count += 1
+                
+                # Convert to grayscale for face detection
+                gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+                
+                # Detect faces
+                faces = face_cascade.detectMultiScale(
+                    gray,
+                    scaleFactor=FACE_DETECTION['scale_factor'],
+                    minNeighbors=FACE_DETECTION['min_neighbors'],
+                    minSize=FACE_DETECTION['min_size']
+                )
+                
+                # Process detected faces
+                for (x, y, w, h) in faces:
+                    cv2.rectangle(img, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                    
+                    # Recognize the face
+                    id, confidence = recognizer.predict(gray[y:y+h, x:x+w])
+                    confidence_value = 100 - confidence  # Convert to percentage
+                    
+                    # Track best match
+                    if confidence_value > best_confidence:
+                        best_confidence = confidence_value
+                        best_name = names.get(str(id), f"Person_{id}")
+                    
+                    # Display name and confidence
+                    name = names.get(str(id), f"Person_{id}") if confidence < 70 else "Unknown"
+                    confidence_text = f"{confidence_value:.1f}%"
+                    
+                    cv2.putText(img, name, (x+5, y-5), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                    cv2.putText(img, confidence_text, (x+5, y+h-5), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 1)
+                
+                # Show video if requested
+                if show_video:
+                    # Show remaining time countdown
+                    time_left = max(0, int(timeout - (time.time() - start_time)))
+                    cv2.putText(img, f"Time: {time_left}s", 
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                    cv2.putText(img, f"Best: {best_name} ({best_confidence:.1f}%)", 
+                                (10, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
+                    
+                    cv2.imshow('Face Recognition', img)
+                
+                # Check for ESC key (with short wait to prevent CPU usage)
+                key = cv2.waitKey(1) & 0xFF
+                if key == 27:  # ESC key
+                    break
+                    
+            except Exception as e:
+                logger.error(f"Error processing frame: {e}")
+                continue
+        
+        logger.info(f"Face detection completed. Processed {frame_count} frames.")
+        logger.info(f"Best match: {best_name} with {best_confidence:.1f}% confidence")
+        
+        # Cleanup
+        picam2.stop()
+        if show_video:
+            cv2.destroyAllWindows()
+        
+        return best_name, best_confidence
+        
     except Exception as e:
-        logger.error(f"An error occurred in face detection: {e}")
-        if 'camera' in locals():
-            camera.close()
-        return "Unknown", 100.0
+        logger.error(f"Error in face detection: {e}")
+        if 'picam2' in locals():
+            picam2.stop()
+        cv2.destroyAllWindows()
+        return "Unknown", 0.0
 
+# For direct testing
 if __name__ == "__main__":
-    name, confidence = detect_face_once(timeout=5.0)
-    logger.info(f"Detected: {name} with confidence {confidence:.1f}%")
+    name, confidence = detect_face_once(timeout=10.0, show_video=True)
+    print(f"Detected: {name} with confidence {confidence:.1f}%")

@@ -9,7 +9,7 @@ from context_engine import ContextEngine
 from task_service import TaskService
 import socket
 
-def start_server(host='192.168.84.248', port=65432):
+def start_server(host='0.0.0.0', port=65432):
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen(1)

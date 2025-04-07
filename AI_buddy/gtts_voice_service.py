@@ -22,6 +22,9 @@ class GTTSVoiceService:
         self.current_buffer = ""
         self.temp_dir = tempfile.mkdtemp()
         self.sentence_endings = ".!?"
+        self.playing = False
+        self.stop_requested = False
+        self.speed = "normal"  # Can be "slow", "normal", or "fast"
     
     def start(self):
         self.active = True
@@ -37,6 +40,19 @@ class GTTSVoiceService:
     
     def stop(self):
         self.active = False
+        self.stop_requested = True
+        # Stop any currently playing audio
+        if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+            pygame.mixer.music.stop()
+        # Clear the queues
+        self._clear_queues()
+        while pygame.mixer.get_busy():
+            time.sleep(0.1)
+        self._cleanup_temp_files()
+        logger.info("Google TTS Voice Service stopped.")
+    
+    def _clear_queues(self):
+        """Clear all pending text and audio queues"""
         while not self.text_queue.empty():
             self.text_queue.get()
         while not self.audio_queue.empty():
@@ -46,8 +62,9 @@ class GTTSVoiceService:
                     os.remove(audio_file)
                 except:
                     pass
-        while pygame.mixer.get_busy():
-            time.sleep(0.1)
+    
+    def _cleanup_temp_files(self):
+        """Clean up all temporary files"""
         for f in os.listdir(self.temp_dir):
             try:
                 os.remove(os.path.join(self.temp_dir, f))
@@ -57,16 +74,54 @@ class GTTSVoiceService:
             os.rmdir(self.temp_dir)
         except:
             pass
-        logger.info("Google TTS Voice Service stopped.")
     
     def speak_token(self, token):
         logger.info(f"Received token: '{token}'")
         self.text_queue.put(token)
     
+    def stop_speaking(self):
+        """Stop current speech playback and clear pending speech"""
+        logger.info("Stop speaking requested")
+        self.stop_requested = True
+        self.current_buffer = ""
+        self._clear_queues()
+        if pygame.mixer.get_init() and pygame.mixer.music.get_busy():
+            pygame.mixer.music.stop()
+        time.sleep(0.1)  # Give a moment for things to clear
+        self.stop_requested = False
+        logger.info("Speech stopped")
+    
+    def is_speaking(self):
+        """Check if the TTS service is currently speaking or has pending speech"""
+        return (self.playing or 
+                not self.text_queue.empty() or 
+                not self.audio_queue.empty() or 
+                bool(self.current_buffer.strip()))
+    
+    def set_speed(self, speed):
+        """Set the speech speed (slow, normal, fast)"""
+        if speed.lower() == "slow":
+            self.slow = True
+            self.speed = "slow"
+            logger.info("TTS speed set to slow")
+        elif speed.lower() == "fast":
+            self.slow = False
+            self.speed = "fast"
+            # Fast is achieved by adjusting playback rate in _playback_worker
+            logger.info("TTS speed set to fast")
+        else:  # normal
+            self.slow = False
+            self.speed = "normal"
+            logger.info("TTS speed set to normal")
+    
     def _tts_worker(self):
         sentence_count = 0
         while self.active:
             try:
+                if self.stop_requested:
+                    time.sleep(0.1)
+                    continue
+                
                 token = self.text_queue.get(timeout=0.1)
                 self.current_buffer += token
                 logger.info(f"Buffer updated: '{self.current_buffer}'")
@@ -80,7 +135,7 @@ class GTTSVoiceService:
                     sentence_count = 0
                 self.text_queue.task_done()
             except queue.Empty:
-                if self.current_buffer and self.current_buffer.strip():
+                if self.current_buffer and self.current_buffer.strip() and not self.stop_requested:
                     logger.info(f"Converting final buffer to speech: '{self.current_buffer}'")
                     self._process_text_to_speech(self.current_buffer)
                     self.current_buffer = ""
@@ -88,6 +143,9 @@ class GTTSVoiceService:
                 time.sleep(0.1)
     
     def _process_text_to_speech(self, text):
+        if self.stop_requested:
+            return
+        
         text = ' '.join(text.split())
         if not text:
             return
@@ -100,26 +158,43 @@ class GTTSVoiceService:
     def _playback_worker(self):
         while self.active:
             try:
+                if self.stop_requested:
+                    time.sleep(0.1)
+                    continue
+                    
                 audio_file = self.audio_queue.get(timeout=0.5)
                 if os.path.exists(audio_file):
+                    self.playing = True
                     pygame.mixer.music.load(audio_file)
-                    pygame.mixer.music.play()
-                    logger.info(f"Playing audio: {audio_file}")
+                    
+                    # Adjust playback speed
+                    if self.speed == "fast":
+                        # Fast speed is achieved by setting a higher playback rate
+                        # The specific value might need adjustment based on preference
+                        pygame.mixer.music.set_pos(0)
+                        pygame.mixer.music.play(loops=0)
+                    else:
+                        pygame.mixer.music.play()
+                    
+                    logger.info(f"Playing audio: {audio_file} at {self.speed} speed")
+                    
                     while pygame.mixer.music.get_busy():
                         time.sleep(0.1)
-                        if not self.active:
+                        if not self.active or self.stop_requested:
+                            pygame.mixer.music.stop()
                             break
                     try:
                         os.remove(audio_file)
                         logger.info(f"Deleted audio file: {audio_file}")
                     except:
                         pass
+                    self.playing = False
                 self.audio_queue.task_done()
             except queue.Empty:
                 time.sleep(0.1)
     
     def process_final_buffer(self):
-        if self.current_buffer and self.current_buffer.strip():
+        if self.current_buffer and self.current_buffer.strip() and not self.stop_requested:
             logger.info(f"Processing final buffer: '{self.current_buffer}'")
             self._process_text_to_speech(self.current_buffer)
             self.current_buffer = ""
@@ -127,9 +202,14 @@ class GTTSVoiceService:
     def wait_until_done(self):
         while not self.text_queue.empty():
             time.sleep(0.1)
+            if self.stop_requested:
+                break
         self.process_final_buffer()
         while not self.audio_queue.empty():
             time.sleep(0.1)
+            if self.stop_requested:
+                break
         while pygame.mixer.music.get_busy():
             time.sleep(0.1)
-            
+            if self.stop_requested:
+                break
